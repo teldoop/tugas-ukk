@@ -1,10 +1,9 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
 
   const [username, setUsername] = useState("");
@@ -17,20 +16,21 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const res = await signIn("credentials", {
-      username,
-      password,
-      redirect: false,
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
     });
 
+    const data = await res.json();
     setLoading(false);
 
-    if (res?.error) {
-      setError("Username atau password salah");
+    if (!res.ok) {
+      setError(data.message || "Registrasi gagal");
       return;
     }
 
-    router.push("/"); // beranda
+    router.push("/login");
   }
 
   return (
@@ -38,7 +38,7 @@ export default function LoginPage() {
       <div className="col-md-4">
         <div className="card shadow-sm">
           <div className="card-body">
-            <h4 className="mb-4 text-center">Login</h4>
+            <h4 className="mb-4 text-center">Register</h4>
 
             {error && (
               <div className="alert alert-danger py-2">{error}</div>
@@ -53,7 +53,6 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  autoFocus
                 />
               </div>
 
@@ -73,13 +72,13 @@ export default function LoginPage() {
                 className="btn btn-primary w-100"
                 disabled={loading}
               >
-                {loading ? "Masuk..." : "Login"}
+                {loading ? "Mendaftarkan..." : "Register"}
               </button>
             </form>
 
             <div className="text-center mt-3">
               <small>
-                Belum punya akun? <a href="/register">Register</a>
+                Sudah punya akun? <a href="/login">Login</a>
               </small>
             </div>
           </div>

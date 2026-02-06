@@ -1,8 +1,9 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
-import User from "@/models/User";
+import bcrypt from "bcryptjs";
+
 import { connectDB } from "@/lib/mongodb";
+import User from "@/models/User";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -13,9 +14,9 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: {
-          label: "Email",
-          type: "email",
+        username: {
+          label: "Username",
+          type: "text",
         },
         password: {
           label: "Password",
@@ -24,15 +25,18 @@ export const authOptions: NextAuthOptions = {
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email dan password wajib diisi");
+        if (!credentials?.username || !credentials.password) {
+          return null;
         }
 
         await connectDB();
 
-        const user = await User.findOne({ email: credentials.email });
+        const user = await User.findOne({
+          username: credentials.username,
+        });
+
         if (!user) {
-          throw new Error("User tidak ditemukan");
+          return null;
         }
 
         const isValid = await bcrypt.compare(
@@ -41,12 +45,12 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isValid) {
-          throw new Error("Password salah");
+          return null;
         }
 
         return {
           id: user._id.toString(),
-          email: user.email,
+          username: user.username,
         };
       },
     }),
@@ -60,13 +64,15 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.username = (user as any).username;
       }
       return token;
     },
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        (session.user as any).id = token.id;
+        (session.user as any).username = token.username;
       }
       return session;
     },

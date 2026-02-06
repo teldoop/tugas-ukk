@@ -1,23 +1,102 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+"use client";
 
-export default async function HomePage() {
-  const session = await getServerSession(authOptions);
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-  if (!session) {
-    redirect("/login");
+type Note = {
+  _id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+};
+
+export default function HomePage() {
+  const router = useRouter();
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  async function fetchNotes() {
+    const res = await fetch("/api/notes");
+    if (res.status === 401) {
+      router.push("/login");
+      return;
+    }
+    setNotes(await res.json());
   }
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
 
   return (
     <div className="container py-4">
-      <h1 className="mb-4">Catatan Pribadi</h1>
+      {/* HEADER */}
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h1>Catatan Pribadi</h1>
 
-      <p className="text-muted">
-        Selamat datang, {session.user?.email}
-      </p>
+        <div className="d-flex gap-2">
+          <button
+            className="btn btn-outline-secondary"
+            onClick={() =>
+              import("next-auth/react").then(({ signOut }) => signOut())
+            }
+          >
+            Logout
+          </button>
 
-      {/* di sini nanti list & editor catatan */}
+          <button
+            className="btn btn-outline-danger"
+            onClick={async () => {
+              if (!confirm("Hapus akun DAN semua catatan?")) return;
+              await fetch("/api/user", { method: "DELETE" });
+              location.href = "/login";
+            }}
+          >
+            Hapus Akun
+          </button>
+        </div>
+      </div>
+
+      {/* NEW NOTE */}
+      <button
+        className="btn btn-success mb-3"
+        onClick={() => router.push("/notes/new")}
+      >
+        + Catatan Baru
+      </button>
+
+      {/* LIST */}
+      {notes.length === 0 ? (
+        <p className="text-muted">Belum ada catatan</p>
+      ) : (
+        <div className="list-group">
+          {notes.map((note) => (
+            <div key={note._id} className="list-group-item">
+              <h5>{note.title}</h5>
+              <p>{note.content}</p>
+
+              <div className="d-flex gap-2">
+                <button
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={() => router.push(`/notes/${note._id}`)}
+                >
+                  Edit
+                </button>
+
+                <button
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={async () => {
+                    if (!confirm("Hapus catatan ini?")) return;
+                    await fetch(`/api/notes/${note._id}`, { method: "DELETE" });
+                    fetchNotes();
+                  }}
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
